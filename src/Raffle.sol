@@ -13,7 +13,7 @@ import {VRFConsumerBaseV2} from "@chainlink/contracts/src/v0.8/vrf/VRFConsumerBa
  */
 contract Raffle is VRFConsumerBaseV2 {
     error Raffle__NotEnoughEntranceFee();
-    error Raffle__LotteryNotOver();
+    error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numberOfPlayers, uint256 raffleState);
     error Raffle__TransferFailed();
     error Raffle__NotOpen();
 
@@ -76,9 +76,28 @@ contract Raffle is VRFConsumerBaseV2 {
         emit RaffleEntered(msg.sender);
     }
 
-    function pickLotteryWinner() public {
-        if (block.timestamp - s_lastTimestamp < i_interval) {
-            revert Raffle__LotteryNotOver();
+    /**
+     * @dev this is the Function chainlink automation node will call
+     * TO see when to perform upkeep
+     * Following should be true
+     * 1. Time interval between raffle has passed
+     * 2. Raffle should be in open State
+     * 3. Contract should has some eth
+     * 4. (Implicit) Subscription is funded with link
+     */
+    function checkUpkeep(bytes memory /*checkData*/ )
+        public
+        view
+        returns (bool upkeepNeeded, bytes memory /*performData*/ )
+    {
+        upkeepNeeded = (s_lastTimestamp - block.timestamp >= i_interval) &&( s_RaffleState == RaffleState.OPEN)
+            && address(this).balance>0 && s_players.length>0;
+    }
+
+    function performUpkeep() public {
+        (bool upkeepNeed,) = checkUpkeep("");
+        if (!upkeepNeed) {
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_RaffleState));
         }
         s_RaffleState = RaffleState.CALCULATING;
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
@@ -86,6 +105,7 @@ contract Raffle is VRFConsumerBaseV2 {
         );
     }
 
+    //CEI- Checks, Effects,Interactions
     function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal override {
         uint256 winnerIndex = _randomWords[0] % s_players.length;
         address payable winnerPlayer = s_players[winnerIndex];
