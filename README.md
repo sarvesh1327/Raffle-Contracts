@@ -13,6 +13,13 @@ this is the code to create proveably random smart contract lottery
  3. Using Chainlink VRF and chainlink Automation
     1. Chainlink VRF--> randomness
     2. Chainlink Automation--> time-based trigger
+   
+## Tests
+1. Write the deployment Scripts
+2. Write Our test
+   1. Works on local chain
+   2. Forked testnet
+   3. forked mainnet
 
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
