@@ -90,7 +90,7 @@ contract Raffle is VRFConsumerBaseV2 {
         view
         returns (bool upkeepNeeded, bytes memory /*performData*/ )
     {
-        upkeepNeeded = (s_lastTimestamp - block.timestamp >= i_interval) &&( s_RaffleState == RaffleState.OPEN)
+        upkeepNeeded = (block.timestamp - s_lastTimestamp>= i_interval) &&( s_RaffleState == RaffleState.OPEN)
             && address(this).balance>0 && s_players.length>0;
     }
 
