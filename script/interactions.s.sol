@@ -5,6 +5,7 @@ pragma solidity ^0.8.20;
 import {Script, console} from "forge-std/Script.sol";
 import {VRFCoordinatorV2Mock} from "@chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol";
 import {MockLinkToken} from "@chainlink/contracts/src/v0.8/mocks/MockLinkToken.sol";
+import {DevOpsTools} from "@foundry-devops/DevOpsTools.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
 contract CreateSubscription is Script {
@@ -53,5 +54,26 @@ contract FundSubscription is Script {
         }
     }
 
-    function run() external {}
+    function run() external {
+        fundSubscriptionUsingConfig();
+    }
+}
+
+contract AddConsumer is Script {
+    function addConsumerUsingConfig(address raffle) public {
+        HelperConfig helperConfig = new HelperConfig();
+        (,, address vrfCoordinator,, uint64 subscriptionId,,) = helperConfig.activeNetworkConfig();
+        addConsumer(vrfCoordinator, subscriptionId, raffle);
+    }
+
+    function addConsumer(address vrfCoordintor, uint64 subscriptionId, address raffle) public {
+        vm.startBroadcast();
+        VRFCoordinatorV2Mock(vrfCoordintor).addConsumer(subscriptionId, raffle);
+        vm.stopBroadcast();
+    }
+
+    function run() external {
+        address raffle = DevOpsTools.get_most_recent_deployment("Raffle", block.chainid);
+        addConsumerUsingConfig(raffle);
+    }
 }
