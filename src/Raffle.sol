@@ -46,6 +46,7 @@ contract Raffle is VRFConsumerBaseV2 {
      */
     event RaffleEntered(address indexed player);
     event PickedWinner(address indexed winner);
+    event RequestedRaffleWinner(uint256 indexed requestId);
 
     constructor(
         uint256 entranceFee,
@@ -90,8 +91,8 @@ contract Raffle is VRFConsumerBaseV2 {
         view
         returns (bool upkeepNeeded, bytes memory /*performData*/ )
     {
-        upkeepNeeded = (block.timestamp - s_lastTimestamp>= i_interval) &&( s_RaffleState == RaffleState.OPEN)
-            && address(this).balance>0 && s_players.length>0;
+        upkeepNeeded = (block.timestamp - s_lastTimestamp >= i_interval) && (s_RaffleState == RaffleState.OPEN)
+            && address(this).balance > 0 && s_players.length > 0;
     }
 
     function performUpkeep() public {
@@ -103,6 +104,7 @@ contract Raffle is VRFConsumerBaseV2 {
         uint256 requestId = i_vrfCoordinator.requestRandomWords(
             i_keyHash, i_subscriptionId, REQUEST_CONFIRMATIONS, i_callbackGasLimit, NUM_WORDS
         );
+        emit RequestedRaffleWinner(requestId);
     }
 
     //CEI- Checks, Effects,Interactions
@@ -125,15 +127,15 @@ contract Raffle is VRFConsumerBaseV2 {
         return i_entranceFee;
     }
 
-    function getRaffleState() external view returns(RaffleState){
+    function getRaffleState() external view returns (RaffleState) {
         return s_RaffleState;
     }
 
-    function getTotalPlayers() external view returns(uint256) {
+    function getTotalPlayers() external view returns (uint256) {
         return s_players.length;
     }
 
-    function getRafflePlayer(uint256 index) external view returns(address){
+    function getRafflePlayer(uint256 index) external view returns (address) {
         return s_players[index];
     }
 }
