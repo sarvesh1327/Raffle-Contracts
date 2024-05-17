@@ -69,9 +69,16 @@ contract RaffleTest is Test {
 
     modifier raffleEntered() {
         vm.prank(PLAYER);
-        raffle.enterRaffle{value: 0.02 ether}();
+        raffle.enterRaffle{value: entranceFee}();
         vm.warp(block.timestamp + interval + 1);
         vm.roll(block.number + 1);
+        _;
+    }
+
+    modifier skipFork() {
+        if (block.chainid != 31337) {
+            return;
+        }
         _;
     }
 
@@ -174,9 +181,45 @@ contract RaffleTest is Test {
     ///fullfillrandomWords///
     /////////////////////////
 
-    function testFullfillRandomWordsCanOnlyBeCalledAfterPerformUpkeep(uint256 randomRequestId) public raffleEntered {
+    function testFulfillRandomWordsCanOnlyBeCalledAfterPerformUpkeep(uint256 randomRequestId)
+        public
+        raffleEntered
+        skipFork
+    {
         // arrange--> via raffleEntered
         vm.expectRevert("nonexistent request");
         VRFCoordinatorV2Mock(vrfCoordinator).fulfillRandomWords(randomRequestId, address(raffle));
+    }
+
+    function testFulfillRandomWordsPicksAWinnerAndResetRaffle() public raffleEntered skipFork{
+        //Arrange
+        uint256 additionalEntrants = 5;
+        uint256 startingIndex = 1;
+        for (uint256 i = startingIndex; i < startingIndex + additionalEntrants; i++) {
+            address player = address(uint160(i));
+            // vm.deal(player, entranceFee);
+            // vm.prank(player);
+            hoax(player, STARTING_USER_BALANCE);
+            raffle.enterRaffle{value: entranceFee}();
+        }
+        uint256 previousLastTimeStamp = raffle.getLastTimeStamp();
+        vm.recordLogs();
+        raffle.performUpkeep();
+        Vm.Log[] memory enteries = vm.getRecordedLogs();
+        bytes32 requestId = enteries[1].topics[1];
+        uint256 prize = entranceFee * (additionalEntrants + 1);
+
+        // Act
+        // fullfillRandomWords call after perform upkeep with vrfCoordinator
+        VRFCoordinatorV2Mock(vrfCoordinator).fulfillRandomWords(uint256(requestId), address(raffle));
+
+        //Assert
+        assert(raffle.getTotalPlayers() == 0);
+        assert(raffle.getRaffleState() == Raffle.RaffleState.OPEN);
+        console.log(raffle.getRecentWinner());
+        assert(raffle.getRecentWinner() != address(0));
+        assert(address(raffle).balance == 0);
+        assert(previousLastTimeStamp < raffle.getLastTimeStamp());
+        assert(raffle.getRecentWinner().balance == STARTING_USER_BALANCE + prize - entranceFee);
     }
 }
